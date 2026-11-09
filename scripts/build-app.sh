@@ -13,6 +13,9 @@ npx @electron/packager . "Phone Explorer" \
   --prune=true \
   --app-bundle-id="io.github.muditagarwal88.phone-explorer" \
   --app-category-type="public.app-category.utilities" \
+  --ignore="^/\\." \
+  --ignore="^/memory$" \
+  --ignore="^/(CLAUDE|AGENTS|GEMINI|CHANGELOG)\\.md$" \
   --ignore="^/dist$" \
   --ignore="^/test$" \
   --ignore="^/test-results$" \
