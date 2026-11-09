@@ -1,0 +1,355 @@
+:root {
+  --bg-app: #f5f5f7;
+  --bg-pane: #ffffff;
+  --bg-header: #ebecef;
+  --bg-selected: #007aff;
+  --text-selected: #ffffff;
+  --text-main: #1d1d1f;
+  --text-muted: #86868b;
+  --border-color: #d2d2d7;
+  --hover-row: #f0f0f2;
+  --status-dot-green: #34c759;
+  --status-dot-orange: #ff9500;
+  --status-dot-red: #ff3b30;
+  --drop-highlight: rgba(0, 122, 255, 0.15);
+  --drop-border: #007aff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-app: #1e1e1e;
+    --bg-pane: #252526;
+    --bg-header: #2d2d2d;
+    --bg-selected: #0a84ff;
+    --text-selected: #ffffff;
+    --text-main: #f5f5f7;
+    --text-muted: #98989d;
+    --border-color: #383838;
+    --hover-row: #2f2f31;
+    --status-dot-green: #30d158;
+    --status-dot-orange: #ff9f0a;
+    --status-dot-red: #ff453a;
+    --drop-highlight: rgba(10, 132, 255, 0.2);
+    --drop-border: #0a84ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  color: var(--text-main);
+  background: var(--bg-app);
+  overflow: hidden;
+  height: 100vh;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Toolbar */
+#toolbar {
+  height: 48px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--status-dot-red);
+}
+
+.status-badge.status-device .status-dot { background: var(--status-dot-green); }
+.status-badge.status-unauthorized .status-dot,
+.status-badge.status-offline .status-dot { background: var(--status-dot-orange); }
+.status-badge.status-none .status-dot,
+.status-badge.status-not_found .status-dot { background: var(--status-dot-red); }
+
+.toolbar-center {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-pane);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--hover-row);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+/* Panes Container */
+#panes-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-pane);
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+  outline: none;
+}
+
+.pane:last-child {
+  border-right: none;
+}
+
+.pane.drop-active {
+  background: var(--drop-highlight);
+  outline: 2px dashed var(--drop-border);
+  outline-offset: -2px;
+}
+
+.pane-header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pane-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pane-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.shortcuts-select {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-pane);
+  color: var(--text-main);
+}
+
+.path-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-btn {
+  padding: 2px 8px;
+  font-weight: bold;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.crumb {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: var(--text-main);
+}
+
+.crumb:hover {
+  background: var(--hover-row);
+}
+
+.crumb-separator {
+  color: var(--text-muted);
+}
+
+/* File Table */
+.table-container {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.file-table thead {
+  position: sticky;
+  top: 0;
+  background: var(--bg-pane);
+  z-index: 2;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.file-table th {
+  padding: 6px 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.file-table th:hover {
+  color: var(--text-main);
+}
+
+.col-name { width: 55%; }
+.col-size { width: 20%; text-align: right; }
+.col-mtime { width: 25%; text-align: right; }
+
+.file-table td {
+  padding: 5px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.file-table td.col-size,
+.file-table td.col-mtime {
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.file-row {
+  cursor: default;
+}
+
+.file-row:hover:not(.selected) {
+  background: var(--hover-row);
+}
+
+.file-row.selected {
+  background: var(--bg-selected) !important;
+  color: var(--text-selected) !important;
+}
+
+.file-row.selected td {
+  color: var(--text-selected) !important;
+}
+
+.file-row.drop-target-row {
+  outline: 2px dashed var(--drop-border);
+  background: var(--drop-highlight) !important;
+}
+
+.item-icon {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.inline-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Transfer Bar */
+#transfer-bar {
+  height: 44px;
+  background: var(--bg-header);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.transfer-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.transfer-speed {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.transfer-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+progress {
+  width: 220px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cancel-btn {
+  color: var(--status-dot-red);
+}

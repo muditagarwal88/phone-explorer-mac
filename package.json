@@ -1,0 +1,39 @@
+{
+  "name": "phone-explorer-mac",
+  "productName": "Phone Explorer",
+  "version": "1.0.0",
+  "description": "Two-pane Android file explorer for macOS: browse your phone over USB, drag and drop files both ways, preview with a double-click.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "test:ui": "playwright test",
+    "package": "bash scripts/build-app.sh",
+    "dist": "bash scripts/build-dmg.sh",
+    "screenshots": "node scripts/take-screenshots.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muditagarwal88/phone-explorer-mac.git"
+  },
+  "homepage": "https://github.com/muditagarwal88/phone-explorer-mac#readme",
+  "bugs": {
+    "url": "https://github.com/muditagarwal88/phone-explorer-mac/issues"
+  },
+  "keywords": [
+    "electron",
+    "android",
+    "adb",
+    "file-manager",
+    "macos",
+    "android-file-transfer",
+    "mtp"
+  ],
+  "author": "muditagarwal88",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/packager": "^18.3.6",
+    "@playwright/test": "^1.49.0",
+    "electron": "^33.2.0"
+  }
+}

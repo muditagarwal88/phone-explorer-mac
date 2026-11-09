@@ -1,0 +1,318 @@
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function unquote(arg) {
+  if (!arg) return '';
+  let s = arg.trim();
+  if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
+    s = s.slice(1, -1);
+    s = s.replace(/'\\''/g, "'");
+  }
+  return s;
+}
+
+function resolveVirtualPath(remotePath) {
+  const root = process.env.FAKE_ADB_ROOT || path.join(__dirname, 'virtual-root');
+  if (!remotePath) return root;
+
+  const clean = unquote(remotePath);
+  const trimmed = clean.replace(/^\/+/, '');
+  const directPath = path.join(root, trimmed);
+
+  if (fs.existsSync(directPath)) {
+    return directPath;
+  }
+
+  if (clean.startsWith('/sdcard')) {
+    const underSd = clean.replace(/^\/sdcard\/?/, '');
+    const candidate = path.join(root, underSd);
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+    if (clean === '/sdcard' || clean === '/sdcard/') {
+      return root;
+    }
+  }
+
+  if (clean === '/' || clean === '') {
+    return root;
+  }
+
+  if (clean.startsWith('/sdcard')) {
+    const underSd = clean.replace(/^\/sdcard\/?/, '');
+    if (fs.existsSync(path.join(root, 'sdcard'))) {
+      return directPath;
+    }
+    return path.join(root, underSd);
+  }
+
+  return directPath;
+}
+
+function formatDate(date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  const ss = String(date.getSeconds()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+}
+
+async function copyFileWithDelay(src, dest, delayMs) {
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  const content = fs.readFileSync(src);
+
+  if (delayMs > 0 && content.length > 0) {
+    // Write partial first to simulate in-flight file if cancelled mid-copy
+    const half = Math.floor(content.length / 2);
+    fs.writeFileSync(dest, content.slice(0, half));
+    await sleep(delayMs);
+    fs.appendFileSync(dest, content.slice(half));
+  } else {
+    fs.writeFileSync(dest, content);
+  }
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const state = process.env.FAKE_ADB_STATE || 'device';
+  const delayMs = parseInt(process.env.FAKE_ADB_DELAY_MS || '0', 10);
+
+  let i = 0;
+  let serial = null;
+  if (args[i] === '-s') {
+    serial = args[i + 1];
+    i += 2;
+  }
+
+  const cmd = args[i];
+
+  if (cmd === 'devices') {
+    console.log('List of devices attached');
+    if (state === 'none') {
+      process.exit(0);
+    } else if (state === 'unauthorized') {
+      console.log('fake-serial-123\tunauthorized usb:1-1 transport_id:1');
+    } else if (state === 'offline') {
+      console.log('fake-serial-123\toffline transport_id:1');
+    } else {
+      console.log('fake-serial-123\tdevice product:OnePlus9_EEA model:OnePlus_9_5G device:OnePlus9 transport_id:1');
+    }
+    process.exit(0);
+  }
+
+  if (cmd === 'get-state') {
+    if (state === 'none') {
+      console.error('error: no devices/emulators found');
+      process.exit(1);
+    }
+    console.log(state);
+    process.exit(0);
+  }
+
+  if (cmd === 'shell') {
+    const shellArgs = args.slice(i + 1);
+    const subCmd = shellArgs[0];
+
+    if (subCmd === 'ls') {
+      let targetArg = '/sdcard';
+      for (let j = 1; j < shellArgs.length; j++) {
+        if (!shellArgs[j].startsWith('-')) {
+          targetArg = shellArgs[j];
+          break;
+        }
+      }
+      // Like a real phone: /sdcard is a symlink, so `ls /sdcard` (no trailing slash) lists only the link itself.
+      if (targetArg.replace(/^'|'$/g, '') === '/sdcard') {
+        console.log('lrw-r--r-- 1 root root 21 2025-10-27 08:42 /sdcard -> /storage/self/primary');
+        process.exit(0);
+      }
+      const vPath = resolveVirtualPath(targetArg);
+      if (!fs.existsSync(vPath)) {
+        console.error(`ls: ${targetArg}: No such file or directory`);
+        process.exit(1);
+      }
+
+      const stat = fs.statSync(vPath);
+      if (!stat.isDirectory()) {
+        const dateStr = formatDate(stat.mtime);
+        console.log(`-rw-rw---- 1 root sdcard_rw ${stat.size} ${dateStr} ${path.basename(vPath)}`);
+        process.exit(0);
+      }
+
+      const entries = fs.readdirSync(vPath, { withFileTypes: true });
+      for (const ent of entries) {
+        const entPath = path.join(vPath, ent.name);
+        try {
+          const s = fs.lstatSync(entPath);
+          const dateStr = formatDate(s.mtime);
+          if (s.isDirectory()) {
+            console.log(`drwxrwx--x 4 root sdcard_rw ${s.size} ${dateStr} ${ent.name}`);
+          } else if (s.isSymbolicLink()) {
+            let target = '';
+            try { target = fs.readlinkSync(entPath); } catch (_) {}
+            console.log(`lrwxrwxrwx 1 root root ${s.size} ${dateStr} ${ent.name} -> ${target}`);
+          } else {
+            console.log(`-rw-rw---- 1 root sdcard_rw ${s.size} ${dateStr} ${ent.name}`);
+          }
+        } catch (_) {}
+      }
+      process.exit(0);
+    }
+
+    if (subCmd === 'stat') {
+      // e.g. stat -c '%s %Y' <path> or stat -c %s <path>
+      let format = '%s';
+      let target = '';
+      for (let j = 1; j < shellArgs.length; j++) {
+        if (shellArgs[j] === '-c') {
+          format = unquote(shellArgs[j + 1]);
+          j++;
+        } else if (!shellArgs[j].startsWith('-')) {
+          target = shellArgs[j];
+        }
+      }
+
+      const vPath = resolveVirtualPath(target);
+      if (!fs.existsSync(vPath)) {
+        console.error(`stat: cannot stat '${target}': No such file or directory`);
+        process.exit(1);
+      }
+
+      const s = fs.statSync(vPath);
+      const mtimeSec = Math.floor(s.mtimeMs / 1000);
+      if (format.includes('%s') && format.includes('%Y')) {
+        console.log(`${s.size} ${mtimeSec}`);
+      } else {
+        console.log(`${s.size}`);
+      }
+      process.exit(0);
+    }
+
+    if (subCmd === 'mkdir') {
+      let target = '';
+      for (let j = 1; j < shellArgs.length; j++) {
+        if (!shellArgs[j].startsWith('-')) {
+          target = shellArgs[j];
+          break;
+        }
+      }
+      const vPath = resolveVirtualPath(target);
+      fs.mkdirSync(vPath, { recursive: true });
+      process.exit(0);
+    }
+
+    if (subCmd === 'rm') {
+      let target = '';
+      for (let j = 1; j < shellArgs.length; j++) {
+        if (!shellArgs[j].startsWith('-')) {
+          target = shellArgs[j];
+          break;
+        }
+      }
+      const vPath = resolveVirtualPath(target);
+      if (fs.existsSync(vPath)) {
+        fs.rmSync(vPath, { force: true, recursive: true });
+      }
+      process.exit(0);
+    }
+
+    console.error(`Unknown shell command: ${shellArgs.join(' ')}`);
+    process.exit(1);
+  }
+
+  if (cmd === 'pull') {
+    let pullArgs = args.slice(i + 1);
+    if (pullArgs[0] === '-a') {
+      pullArgs = pullArgs.slice(1);
+    }
+
+    const remote = pullArgs[0];
+    const local = pullArgs[1];
+    const vSrc = resolveVirtualPath(remote);
+
+    if (!fs.existsSync(vSrc)) {
+      console.error(`adb: error: failed to copy '${remote}' to '${local}': remote object '${remote}' does not exist`);
+      process.exit(1);
+    }
+
+    const s = fs.statSync(vSrc);
+    if (s.isDirectory()) {
+      // Recursive directory copy
+      function copyDirSync(src, dst) {
+        fs.mkdirSync(dst, { recursive: true });
+        for (const f of fs.readdirSync(src)) {
+          const sp = path.join(src, f);
+          const dp = path.join(dst, f);
+          if (fs.statSync(sp).isDirectory()) {
+            copyDirSync(sp, dp);
+          } else {
+            fs.copyFileSync(sp, dp);
+          }
+        }
+      }
+      if (delayMs > 0) await sleep(delayMs);
+      copyDirSync(vSrc, local);
+    } else {
+      let targetDest = local;
+      if (fs.existsSync(local) && fs.statSync(local).isDirectory()) {
+        targetDest = path.join(local, path.basename(remote));
+      }
+      await copyFileWithDelay(vSrc, targetDest, delayMs);
+    }
+    process.exit(0);
+  }
+
+  if (cmd === 'push') {
+    const pushArgs = args.slice(i + 1);
+    const local = pushArgs[0];
+    const remote = pushArgs[1];
+
+    if (!fs.existsSync(local)) {
+      console.error(`adb: error: cannot stat '${local}': No such file or directory`);
+      process.exit(1);
+    }
+
+    const vDest = resolveVirtualPath(remote);
+    const s = fs.statSync(local);
+
+    if (s.isDirectory()) {
+      function copyDirSync(src, dst) {
+        fs.mkdirSync(dst, { recursive: true });
+        for (const f of fs.readdirSync(src)) {
+          const sp = path.join(src, f);
+          const dp = path.join(dst, f);
+          if (fs.statSync(sp).isDirectory()) {
+            copyDirSync(sp, dp);
+          } else {
+            fs.copyFileSync(sp, dp);
+          }
+        }
+      }
+      if (delayMs > 0) await sleep(delayMs);
+      copyDirSync(local, vDest);
+    } else {
+      let targetDest = vDest;
+      if (fs.existsSync(vDest) && fs.statSync(vDest).isDirectory()) {
+        targetDest = path.join(vDest, path.basename(local));
+      }
+      await copyFileWithDelay(local, targetDest, delayMs);
+    }
+    process.exit(0);
+  }
+
+  console.error(`fake-adb: unhandled command: ${args.join(' ')}`);
+  process.exit(1);
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

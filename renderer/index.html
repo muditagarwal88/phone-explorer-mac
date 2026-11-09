@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phone Explorer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Toolbar -->
+    <header id="toolbar">
+      <div id="device-status" class="status-badge status-none">
+        <span class="status-dot"></span>
+        <span id="device-status-text">Plug in your phone with a USB cable</span>
+      </div>
+
+      <div class="toolbar-center">
+        <button id="btn-copy-to-mac" title="Copy selected phone items to Mac">Copy to Mac &rarr;</button>
+        <button id="btn-copy-to-phone" title="Copy selected Mac items to phone">&larr; Copy to phone</button>
+        <button id="btn-prepare-finder" title="Prepare selected phone items for dragging to Finder">Prepare for Finder</button>
+      </div>
+
+      <div class="toolbar-right">
+        <label class="checkbox-label" title="Double-click a file to copy it to a temporary folder and open it">
+          <input type="checkbox" id="chk-preview" checked>
+          Preview on double-click
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="chk-show-hidden">
+          Show hidden files
+        </label>
+      </div>
+    </header>
+
+    <!-- Main Explorer Two-Pane Container -->
+    <main id="panes-container">
+      <!-- Left Pane: Phone -->
+      <section id="phone-pane" class="pane" tabindex="0">
+        <div class="pane-header">
+          <div class="pane-title-row">
+            <span class="pane-title">Phone</span>
+            <select id="phone-shortcuts" class="shortcuts-select">
+              <option value="" disabled selected>Shortcuts...</option>
+              <option value="/sdcard">Internal storage (/sdcard)</option>
+              <option value="/sdcard/DCIM">DCIM</option>
+              <option value="/sdcard/Download">Download</option>
+              <option value="/sdcard/Pictures">Pictures</option>
+              <option value="/sdcard/Movies">Movies</option>
+              <option value="/sdcard/Documents">Documents</option>
+              <option value="/sdcard/Music">Music</option>
+            </select>
+          </div>
+          <div class="path-bar">
+            <button id="phone-up-btn" class="nav-btn" title="Go up one folder">&uarr;</button>
+            <div id="phone-breadcrumbs" class="breadcrumbs"></div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="file-table" id="phone-table">
+            <thead>
+              <tr>
+                <th class="col-name" data-col="name">Name <span class="sort-indicator"></span></th>
+                <th class="col-size" data-col="size">Size <span class="sort-indicator"></span></th>
+                <th class="col-mtime" data-col="mtime">Modified <span class="sort-indicator"></span></th>
+              </tr>
+            </thead>
+            <tbody id="phone-tbody"></tbody>
+          </table>
+          <div id="phone-error" class="inline-message hidden">Can't read this folder</div>
+          <div id="phone-empty" class="inline-message hidden">Empty folder</div>
+        </div>
+      </section>
+
+      <!-- Right Pane: Mac -->
+      <section id="mac-pane" class="pane" tabindex="0">
+        <div class="pane-header">
+          <div class="pane-title-row">
+            <span class="pane-title">Mac</span>
+            <select id="mac-shortcuts" class="shortcuts-select">
+              <option value="" disabled selected>Shortcuts...</option>
+              <option value="home">Home</option>
+              <option value="downloads">Downloads</option>
+              <option value="desktop">Desktop</option>
+              <option value="documents">Documents</option>
+            </select>
+          </div>
+          <div class="path-bar">
+            <button id="mac-up-btn" class="nav-btn" title="Go up one folder">&uarr;</button>
+            <div id="mac-breadcrumbs" class="breadcrumbs"></div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="file-table" id="mac-table">
+            <thead>
+              <tr>
+                <th class="col-name" data-col="name">Name <span class="sort-indicator"></span></th>
+                <th class="col-size" data-col="size">Size <span class="sort-indicator"></span></th>
+                <th class="col-mtime" data-col="mtime">Modified <span class="sort-indicator"></span></th>
+              </tr>
+            </thead>
+            <tbody id="mac-tbody"></tbody>
+          </table>
+          <div id="mac-error" class="inline-message hidden">Can't read this folder</div>
+          <div id="mac-empty" class="inline-message hidden">Empty folder</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Transfer Bar -->
+    <footer id="transfer-bar">
+      <div class="transfer-info">
+        <span id="transfer-label">Ready</span>
+        <span id="transfer-speed" class="transfer-speed"></span>
+      </div>
+      <div class="transfer-controls">
+        <progress id="transfer-progress-bar" value="0" max="100"></progress>
+        <button id="btn-cancel-transfer" class="cancel-btn" disabled>Cancel</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

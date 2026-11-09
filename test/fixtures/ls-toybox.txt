@@ -1,0 +1,8 @@
+total 48
+drwxrwx--x 4 root sdcard_rw 3452 2026-10-06 23:37 1DM
+-rw-rw---- 1 root sdcard_rw 123456 2026-10-06 23:37:41 My File with spaces.mp4
+lrwxrwxrwx 1 root root 11 2026-10-06 23:37 sdcard -> /storage/emulated/0
+-rw-r--r-- 1 u0_a123 u0_a123 1048576 2026-05-01 12:00 .hidden_file
+-rw-r--r-- 1 root root 4096 2026-01-01 00:00 🎵 song.mp3
+drwxrwx--x 2 root sdcard_rw 4096 2026-09-01 10:10 DCIM
+-rw-rw---- 1 root sdcard_rw 2048 2026-08-15 08:00 Normal.txt
