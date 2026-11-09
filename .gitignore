@@ -6,3 +6,19 @@ playwright-report/
 *.log
 .env
 .env.*
+
+# Local developer tooling (AI assistants, workspace config). Not part of the app.
+.claude/
+.claude-project-name
+.agents/
+.cursor/
+.guardrails/
+.hub-build/
+.windsurfrules
+.github/copilot-instructions.md
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+memory/
+docs/deviations.md
+docs/lessons.md
