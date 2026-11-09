@@ -16,7 +16,7 @@ so there's no MTP flakiness and no fight with macOS's Image Capture service. Why
 - **Progress and Cancel** for every copy, with speed.
 - **Double-click to preview:** a phone file is copied to a temporary folder and opened, and the copy is deleted later.
 - **Copy only:** never deletes, renames or overwrites. A name clash saves as `name (1)`.
-- **Safe previews:** scripts and apps from the phone are shown in Finder, never run.
+- **Safe previews:** only photos, videos, music and documents open; anything else is shown in Finder, never run.
 
 ## Install
 

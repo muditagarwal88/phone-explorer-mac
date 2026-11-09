@@ -8,6 +8,19 @@ const localFs = require('./src/local-fs');
 const { TransferJob } = require('./src/transfer');
 const dragcache = require('./src/dragcache');
 const preview = require('./src/preview');
+const guard = require('./src/ipc-guard');
+const { pathToFileURL } = require('url');
+
+// Only the app's own page may call the main process. Phone file names are shown in that page, so its
+// requests are also checked (see src/ipc-guard.js) before anything touches adb or the disk.
+const RENDERER_URL = pathToFileURL(path.join(__dirname, 'renderer', 'index.html')).href;
+function handle(channel, fn) {
+  ipcMain.handle(channel, (event, ...args) => {
+    const url = event.senderFrame && event.senderFrame.url;
+    if (url !== RENDERER_URL) throw new Error('Rejected request from an unexpected page');
+    return fn(event, ...args);
+  });
+}
 
 const PREVIEW_MAX_AGE_MS = 60 * 60 * 1000; // preview copies are deleted after an hour, and on quit
 
@@ -46,9 +59,13 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   });
+
+  // The window never leaves the app's own page: no links, no dropped-file navigation, no pop-ups.
+  mainWindow.webContents.on('will-navigate', (e) => e.preventDefault());
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   // Strict CSP
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -98,7 +115,7 @@ app.on('window-all-closed', () => {
 
 // IPC Handlers
 
-ipcMain.handle('phone:get-status', async () => {
+handle('phone:get-status', async () => {
   try {
     const { stdout } = await adb.run(['devices', '-l']);
     const parsed = adb.parseDevices(stdout);
@@ -152,7 +169,7 @@ ipcMain.handle('phone:get-status', async () => {
   }
 });
 
-ipcMain.handle('phone:list', async (event, dir) => {
+handle('phone:list', async (event, dir) => {
   if (!currentSerial) {
     const status = await adb.run(['devices', '-l']).catch(() => null);
     if (status) {
@@ -170,12 +187,12 @@ ipcMain.handle('phone:list', async (event, dir) => {
   return await phoneFs.list(currentSerial, dir || '/sdcard');
 });
 
-ipcMain.handle('local:list', async (event, dir) => {
+handle('local:list', async (event, dir) => {
   const targetDir = dir || process.env.PHONE_EXPLORER_LOCAL_START || os.homedir();
   return await localFs.list(targetDir);
 });
 
-ipcMain.handle('app:get-start-paths', async () => {
+handle('app:get-start-paths', async () => {
   return {
     phoneStart: '/sdcard',
     localStart: process.env.PHONE_EXPLORER_LOCAL_START || os.homedir(),
@@ -183,15 +200,10 @@ ipcMain.handle('app:get-start-paths', async () => {
   };
 });
 
-ipcMain.handle('transfer:start', async (event, options) => {
-  const serial = options.serial || currentSerial;
-  const job = new TransferJob({
-    direction: options.direction,
-    serial,
-    sourceDir: options.sourceDir,
-    destDir: options.destDir,
-    items: options.items
-  });
+handle('transfer:start', async (event, options) => {
+  const opts = guard.checkTransfer(options);
+  if (!currentSerial) throw new Error('No device connected');
+  const job = new TransferJob({ ...opts, serial: currentSerial });
 
   activeTransferJob = job;
 
@@ -209,7 +221,7 @@ ipcMain.handle('transfer:start', async (event, options) => {
   }
 });
 
-ipcMain.handle('transfer:cancel', async () => {
+handle('transfer:cancel', async () => {
   if (activeTransferJob) {
     activeTransferJob.cancel();
   }
@@ -217,7 +229,8 @@ ipcMain.handle('transfer:cancel', async () => {
   return { cancelled: true };
 });
 
-ipcMain.handle('dragcache:prepare', async (event, { sourceDir, items }) => {
+handle('dragcache:prepare', async (event, { sourceDir, items } = {}) => {
+  items = guard.checkPhoneSelection(sourceDir, items);
   const serial = currentSerial;
   if (!serial) {
     throw new Error('No device connected');
@@ -230,12 +243,18 @@ ipcMain.handle('dragcache:prepare', async (event, { sourceDir, items }) => {
   });
 });
 
-ipcMain.handle('dragcache:is-ready', async (event, { sourceDir, items }) => {
+handle('dragcache:is-ready', async (event, { sourceDir, items } = {}) => {
+  items = guard.checkPhoneSelection(sourceDir, items);
   return await dragcache.isSelectionReady(currentSerial, sourceDir, items);
 });
 
-ipcMain.handle('drag:start-native', async (event, { localPaths }) => {
-  if (!localPaths || localPaths.length === 0) return false;
+handle('drag:start-native', async (event, { localPaths } = {}) => {
+  try {
+    localPaths = guard.checkCachedPaths(localPaths, dragcache.CACHE_DIR);
+  } catch (err) {
+    console.error(err.message);
+    return false;
+  }
   const primaryFile = localPaths[0];
 
   if (process.env.PHONE_EXPLORER_TEST) {
@@ -257,12 +276,12 @@ ipcMain.handle('drag:start-native', async (event, { localPaths }) => {
   }
 });
 
-// Open a file with its default app. Files that macOS would run are revealed in Finder instead.
+// Open a file with its default app. Only photos, videos, music and documents open; anything else is revealed in Finder.
 async function openFile(filePath) {
   if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) {
     return { opened: false, error: 'Invalid file path' };
   }
-  if (preview.isRiskyToOpen(filePath)) {
+  if (!preview.isSafeToOpen(filePath)) {
     if (!process.env.PHONE_EXPLORER_TEST) shell.showItemInFolder(filePath);
     return { opened: false, revealed: true, path: filePath };
   }
@@ -271,10 +290,12 @@ async function openFile(filePath) {
   return error ? { opened: false, error, path: filePath } : { opened: true, path: filePath };
 }
 
-ipcMain.handle('open:local-file', async (event, filePath) => openFile(filePath));
+handle('open:local-file', async (event, filePath) => openFile(filePath));
 
 // Double-click on a phone file: copy it to a temp folder, then open it. The copy is deleted later.
-ipcMain.handle('preview:phone-file', async (event, { sourceDir, entry }) => {
+handle('preview:phone-file', async (event, { sourceDir, entry } = {}) => {
+  [entry] = guard.checkPhoneSelection(sourceDir, [entry]);
+  if (entry.isDir) return { error: 'Folders cannot be previewed' };
   if (!currentSerial) {
     const err = new Error('No device connected');
     err.code = 'NO_DEVICE';
@@ -309,7 +330,7 @@ ipcMain.handle('preview:phone-file', async (event, { sourceDir, entry }) => {
     preview.removeDir(destDir);
     return { cancelled: true };
   }
-  if (!result.success || !fs.existsSync(filePath)) {
+  if (!result.success || !fs.existsSync(filePath) || !preview.makeInert(filePath)) {
     preview.removeDir(destDir);
     return { error: (result.errors && result.errors[0] && (result.errors[0].message || String(result.errors[0]))) || 'Could not copy the file from the phone' };
   }

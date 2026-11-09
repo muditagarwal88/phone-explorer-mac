@@ -95,8 +95,25 @@ function filterEntries(entries) {
 }
 
 // Rendering
+// File names come from the phone, so they are always set as text, never parsed as HTML.
+function fillRowCells(tr, icon, name, sizeDisplay, mtimeDisplay) {
+  const nameCell = document.createElement('td');
+  nameCell.className = 'col-name';
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'item-icon';
+  iconSpan.textContent = icon;
+  nameCell.append(iconSpan, name);
+  const sizeCell = document.createElement('td');
+  sizeCell.className = 'col-size';
+  sizeCell.textContent = sizeDisplay;
+  const mtimeCell = document.createElement('td');
+  mtimeCell.className = 'col-mtime';
+  mtimeCell.textContent = mtimeDisplay;
+  tr.append(nameCell, sizeCell, mtimeCell);
+}
+
 function renderPhoneTable() {
-  elPhoneTbody.innerHTML = '';
+  elPhoneTbody.replaceChildren();
   const filtered = filterEntries(phoneEntries);
   const sorted = sortEntries(filtered, phoneSort);
 
@@ -120,11 +137,7 @@ function renderPhoneTable() {
     const sizeDisplay = entry.isDir ? '-' : formatBytes(entry.size);
     const mtimeDisplay = formatDate(entry.mtimeMs);
 
-    tr.innerHTML = `
-      <td class="col-name"><span class="item-icon">${icon}</span>${entry.name}</td>
-      <td class="col-size">${sizeDisplay}</td>
-      <td class="col-mtime">${mtimeDisplay}</td>
-    `;
+    fillRowCells(tr, icon, entry.name, sizeDisplay, mtimeDisplay);
 
     tr.addEventListener('click', (e) => handleRowClick(e, 'phone', entry.name, index, sorted));
     tr.addEventListener('dblclick', () => openPhoneEntry(entry));
@@ -140,7 +153,7 @@ function renderPhoneTable() {
 }
 
 function renderMacTable() {
-  elMacTbody.innerHTML = '';
+  elMacTbody.replaceChildren();
   const filtered = filterEntries(localEntries);
   const sorted = sortEntries(filtered, localSort);
 
@@ -164,11 +177,7 @@ function renderMacTable() {
     const sizeDisplay = entry.isDir ? '-' : formatBytes(entry.size);
     const mtimeDisplay = formatDate(entry.mtimeMs);
 
-    tr.innerHTML = `
-      <td class="col-name"><span class="item-icon">${icon}</span>${entry.name}</td>
-      <td class="col-size">${sizeDisplay}</td>
-      <td class="col-mtime">${mtimeDisplay}</td>
-    `;
+    fillRowCells(tr, icon, entry.name, sizeDisplay, mtimeDisplay);
 
     tr.addEventListener('click', (e) => handleRowClick(e, 'mac', entry.name, index, sorted));
     tr.addEventListener('dblclick', () => openMacEntry(entry));
@@ -199,7 +208,7 @@ function renderMacTable() {
 
 function renderBreadcrumbs(pane, fullPath) {
   const container = pane === 'phone' ? elPhoneBreadcrumbs : elMacBreadcrumbs;
-  container.innerHTML = '';
+  container.replaceChildren();
 
   const parts = fullPath.split('/').filter(Boolean);
   let accumulated = '';
@@ -601,7 +610,7 @@ function openMacEntry(entry) {
     navigateToMac(fullPath);
   } else if (elPreviewOnDblclick.checked) {
     window.api.openLocalFile(fullPath).then((res) => {
-      if (res && res.revealed) elTransferLabel.textContent = `${entry.name} can run code, so it was shown in Finder instead of opened`;
+      if (res && res.revealed) elTransferLabel.textContent = `${entry.name} was shown in Finder instead of opened (only photos, videos, music and documents open directly)`;
       else if (res && res.error) elTransferLabel.textContent = `Could not open ${entry.name}: ${res.error}`;
     });
   }
@@ -628,7 +637,7 @@ async function previewPhoneFile(entry) {
     } else if (res.error) {
       elTransferLabel.textContent = `Could not open ${entry.name}: ${res.error}`;
     } else if (res.revealed) {
-      elTransferLabel.textContent = `${entry.name} can run code, so it was shown in Finder instead of opened`;
+      elTransferLabel.textContent = `${entry.name} was shown in Finder instead of opened (only photos, videos, music and documents open directly)`;
     } else {
       elTransferLabel.textContent = `Opened ${entry.name} (temporary copy, deleted later)`;
     }

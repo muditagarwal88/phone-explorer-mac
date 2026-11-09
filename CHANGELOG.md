@@ -10,8 +10,15 @@ First public release.
 - Drag from Finder onto the phone pane.
 - Phone → Finder drag via **Prepare for Finder** (pre-copy with progress, then drag).
 - Double-click preview: temporary copy, opened with the default app, deleted on quit or after an hour.
-  Scripts and apps are revealed in Finder instead of being run.
+  Only media and document types open; anything else is revealed in Finder.
 - Copy only: no delete, rename or overwrite; name clashes save as `name (1)`.
+
+### Security hardening before release
+
+- File names are always shown as text, so a phone file named like HTML can't change the page.
+- The window can't navigate away or open new windows; the page runs sandboxed.
+- The main process only answers the app's own page, and checks every request (no `..` names, no foreign drag paths).
+- Double-click opens only an allowlist of media and document types; preview copies lose execute permission.
 
 ### Fixed before release
 

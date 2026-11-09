@@ -19,13 +19,29 @@ function withRoot(fn) {
 
 const preview = require('../src/preview');
 
-test('preview.isRiskyToOpen flags files macOS would run, case-insensitively', () => {
-  for (const name of ['setup.command', 'Tool.APP', 'x.pkg', 'run.SH', 'a.jar', 'link.webloc', 'evil.scpt']) {
-    assert.equal(preview.isRiskyToOpen(name), true, name);
+test('preview.isSafeToOpen allows only media and documents, case-insensitively', () => {
+  for (const name of ['photo.jpg', 'IMG.HEIC', 'movie.mp4', 'voice.m4a', 'doc.pdf', 'notes.txt', 'sheet.xlsx']) {
+    assert.equal(preview.isSafeToOpen(name), true, name);
   }
-  for (const name of ['photo.jpg', 'movie.mp4', 'doc.pdf', 'notes.txt', 'app.apk', 'archive.zip', 'noext']) {
-    assert.equal(preview.isRiskyToOpen(name), false, name);
+  for (const name of ['setup.command', 'Tool.APP', 'x.pkg', 'run.SH', 'a.jar', 'link.webloc', 'evil.scpt',
+    'noext', 'report.pdf.command', 'page.html', 'app.apk', 'archive.zip', 'contact.vcf', '.hidden']) {
+    assert.equal(preview.isSafeToOpen(name), false, name);
   }
+});
+
+test('preview.makeInert strips execute bits and refuses non-files', () => {
+  withRoot(() => {
+    const dir = preview.newPreviewDir();
+    const f = path.join(dir, 'clip.mp4');
+    fs.writeFileSync(f, 'x');
+    fs.chmodSync(f, 0o755);
+    assert.equal(preview.makeInert(f), true);
+    assert.equal(fs.statSync(f).mode & 0o111, 0);
+    const link = path.join(dir, 'link.mp4');
+    fs.symlinkSync('/etc/hosts', link);
+    assert.equal(preview.makeInert(link), false);
+    assert.equal(preview.makeInert(dir), false);
+  });
 });
 
 test('preview.newPreviewDir gives a fresh empty folder each time under the preview root', () => {

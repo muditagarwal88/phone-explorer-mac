@@ -56,8 +56,9 @@ Dragging between the two panes needs no preparation.
 
 ## A double-clicked file was shown in Finder instead of opening
 
-Scripts, apps and installers (`.command`, `.sh`, `.app`, `.pkg`, `.dmg`, `.jar`, `.py` and similar) from a phone are
-never run automatically. They are revealed in Finder so you can decide.
+Only photos, videos, music and common documents (PDF, text, Office, iWork) open with a double-click.
+Anything else, such as apps, scripts, installers, web pages or files with no extension, is revealed in Finder
+so you decide what to do with it. Files from a phone are never run automatically.
 
 ## Where are the temporary copies?
 
